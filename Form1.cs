@@ -20,11 +20,10 @@ namespace TouchRemote
     private const int BaseY = 1;
     private const int SpacerY = -1;
 
-    private int _adjustedWidth;
-    private int _adjustedHeight;
+    private const int MINBUTTONWIDTH = 48;
+    private const int MINBUTTONHEIGHT = 32;
 
-    private int _buttonWidth;
-    private readonly int _buttonHeight = 48;
+    private bool _adjustingForm = false;
 
     const int WM_NCRBUTTONDOWN = 0xA4;
     const int WM_NCRBUTTONUP = 0xA5;
@@ -37,9 +36,6 @@ namespace TouchRemote
     public Form1()
     {
       InitializeComponent();
-
-      _adjustedWidth = this.Width;
-      _buttonWidth = this.ClientRectangle.Width;
 
       _opt = new TouchMenuOptions();
 
@@ -127,7 +123,7 @@ namespace TouchRemote
 
     private void RemoveButtonFromForm(string Name)
     {
-      if(!this.Controls.ContainsKey(Name)) return;
+      if (!this.Controls.ContainsKey(Name)) return;
       this.Controls.Remove(this.Controls[Name]);
       AdjustForm();
     }
@@ -135,50 +131,58 @@ namespace TouchRemote
     private void AddButtonToForm(string Name)
     {
       if (this.Controls.ContainsKey(Name)) RemoveButtonFromForm(Name);
-
+    
       Button b = new Button();
       b.Text = Name;
       b.Name = Name;
       b.Location = new System.Drawing.Point(BaseX, BaseY);
-      b.Size = new System.Drawing.Size(_buttonWidth, _buttonHeight);
+      b.Size = new System.Drawing.Size(MINBUTTONWIDTH, MINBUTTONHEIGHT);
       b.UseVisualStyleBackColor = true;
       b.MouseUp += new System.Windows.Forms.MouseEventHandler(managedButton_MouseUp);
       b.GotFocus += new EventHandler(shared_GotFocus);
       this.Controls.Add(b);
 
       AdjustForm();
+
     }
 
     private void AdjustForm()
     {
-      _adjustedWidth = this.Width;
-      _buttonWidth = this.ClientRectangle.Width;
+      if (_opt == null) return;
+      int bc = _opt.ActiveButtonCount;
+      if (bc < 1) return;
+
+      _adjustingForm = true;
+
+      int cw = this.ClientRectangle.Width;
+      if(cw < MINBUTTONWIDTH)
+        this.Width += MINBUTTONWIDTH - cw;
+      cw = this.ClientRectangle.Width;
+
+      int ch = this.ClientRectangle.Height / bc;
+      if(ch < MINBUTTONHEIGHT)
+        this.Height += (MINBUTTONHEIGHT - ch) * bc;
+      ch = this.ClientRectangle.Height / bc;
 
       int i = 0;
       foreach (Control o in this.Controls)
         if(o.GetType().ToString() == "System.Windows.Forms.Button")
         {
-          int newY = BaseY + i * (_buttonHeight + SpacerY);
+          int newY = BaseY + i * ch;
           o.Location = new Point(BaseX, newY);
-          o.Size = new Size(_buttonWidth, _buttonHeight);
+          o.Size = new Size(cw, ch);
           o.TabIndex = i;
           i++;
         }
 
-      if (i < 1) return;
-
-      int spaceNeeded = (1 + BaseY + i * (_buttonHeight + SpacerY)) -
-        this.ClientRectangle.Height;
-
-      _adjustedHeight = this.Height + spaceNeeded;
-      this.Height = _adjustedHeight;
-      
+      _adjustingForm = false;
     }
 
     private void Form1_Resize(object sender, EventArgs e)
     {
-      if (this.Height != _adjustedHeight) this.Height = _adjustedHeight;
-      if (this.ClientRectangle.Width != _buttonWidth) AdjustForm();
+      if (_adjustingForm) return; //don't react to my own resizes
+      if (_opt == null) return; //don't do anything if settings have not been loaded
+      AdjustForm();
     }
   }
 }

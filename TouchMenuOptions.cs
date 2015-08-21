@@ -14,7 +14,9 @@ namespace TouchRemote
     private string _activeSet;
 
     public Dictionary<string, TouchButtonSet> Sets { get { return _sets; } }
-    public int Count { get { return _sets.Count; } }
+    public int SetCount { get { return _sets.Count; } }
+
+    public int ActiveButtonCount { get { return this.SelectedSet.ButtonCount; } }
 
     public void Add(TouchButtonSet NewButtonSet)
     {
