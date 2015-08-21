@@ -10,16 +10,21 @@ using System.Windows.Forms;
 
 namespace TouchRemote
 {
-  public enum OptionActions { Update, Exit }
+  public enum OptionActions { Nothing, Update, Exit }
 
   public partial class Form1 : Form
   {
     private TouchMenuOptions _opt;
 
-    private const int ButtonRootX = 0;
-    private const int ButtonRootY = 1;
-    private const int ButtonStepY = -1;
-    private int _buttonSize;
+    private const int BaseX = 0;
+    private const int BaseY = 1;
+    private const int SpacerY = -1;
+
+    private int _adjustedWidth;
+    private int _adjustedHeight;
+
+    private int _buttonWidth;
+    private readonly int _buttonHeight = 48;
 
     const int WM_NCRBUTTONDOWN = 0xA4;
     const int WM_NCRBUTTONUP = 0xA5;
@@ -33,14 +38,23 @@ namespace TouchRemote
     {
       InitializeComponent();
 
-      _buttonSize = this.ClientRectangle.Width;
+      _adjustedWidth = this.Width;
+      _buttonWidth = this.ClientRectangle.Width;
 
       _opt = new TouchMenuOptions();
+
+      ResetButtons();
       
-      foreach(string bn in _opt.SelectedSet.Buttons.Keys)
-      {
+    }
+
+    protected void ResetButtons()
+    {
+      foreach (Control o in this.Controls)
+        if (o.GetType() == typeof(Button))
+          this.Controls.Remove(o);
+
+      foreach (string bn in _opt.SelectedSet.Buttons.Keys)
         AddButtonToForm(bn);
-      }
     }
 
     protected override void WndProc(ref Message m)
@@ -79,7 +93,9 @@ namespace TouchRemote
       of.ShowDialog();
       OptionActions oa = of.Action;
       this.TopMost = true;
+
       if (oa == OptionActions.Exit) this.Close();
+      else if (oa == OptionActions.Update) ResetButtons();
     }
 
     private void managedButton_MouseUp(object sender, MouseEventArgs e)
@@ -98,20 +114,11 @@ namespace TouchRemote
     private void DoButtonAction(string ButtonName)
     {
       TouchMenuOptions.TouchButton b = _opt.SelectedSet[ButtonName];
-      MessageBox.Show(b.Name + " | " + b.Type.ToString());
 
       switch (b.Type)
       {
-        case ButtonType.Cut:
-          SendKeys("^X");
-          break;
-        case ButtonType.Copy:
-          SendKeys("^C");
-          break;
-        case ButtonType.Paste:
-          SendKeys("^V");
-          break;
         case ButtonType.Keystroke:
+          SendKeys.Send(b.Keys);
           break;
         default:
           break;
@@ -132,8 +139,8 @@ namespace TouchRemote
       Button b = new Button();
       b.Text = Name;
       b.Name = Name;
-      b.Location = new System.Drawing.Point(ButtonRootX, ButtonRootY);
-      b.Size = new System.Drawing.Size(_buttonSize, _buttonSize);
+      b.Location = new System.Drawing.Point(BaseX, BaseY);
+      b.Size = new System.Drawing.Size(_buttonWidth, _buttonHeight);
       b.UseVisualStyleBackColor = true;
       b.MouseUp += new System.Windows.Forms.MouseEventHandler(managedButton_MouseUp);
       b.GotFocus += new EventHandler(shared_GotFocus);
@@ -144,28 +151,34 @@ namespace TouchRemote
 
     private void AdjustForm()
     {
-      int count = 0;
-      foreach(object o in this.Controls)
+      _adjustedWidth = this.Width;
+      _buttonWidth = this.ClientRectangle.Width;
+
+      int i = 0;
+      foreach (Control o in this.Controls)
         if(o.GetType().ToString() == "System.Windows.Forms.Button")
         {
-          Button b = (Button)o;
-          int newY = ButtonRootY + count * (_buttonSize + ButtonStepY);
-          b.Location = new Point(ButtonRootX, newY);
-          b.TabIndex = count;
-          count++;
+          int newY = BaseY + i * (_buttonHeight + SpacerY);
+          o.Location = new Point(BaseX, newY);
+          o.Size = new Size(_buttonWidth, _buttonHeight);
+          o.TabIndex = i;
+          i++;
         }
 
-      if (count < 1) return;
+      if (i < 1) return;
 
-      int newCH = 1 + ButtonRootY + count * (_buttonSize + ButtonStepY);
+      int spaceNeeded = (1 + BaseY + i * (_buttonHeight + SpacerY)) -
+        this.ClientRectangle.Height;
 
-      if(newCH > this.ClientRectangle.Height)
-        while (newCH > this.ClientRectangle.Height)
-          this.Height += 1;
-      else
-        while (newCH < this.ClientRectangle.Height)
-          this.Height -= 1;
+      _adjustedHeight = this.Height + spaceNeeded;
+      this.Height = _adjustedHeight;
+      
+    }
 
+    private void Form1_Resize(object sender, EventArgs e)
+    {
+      if (this.Height != _adjustedHeight) this.Height = _adjustedHeight;
+      if (this.ClientRectangle.Width != _buttonWidth) AdjustForm();
     }
   }
 }

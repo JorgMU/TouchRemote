@@ -47,7 +47,7 @@
       this.ClientSize = new System.Drawing.Size(78, 71);
       this.ControlBox = false;
       this.Controls.Add(this.focusLabel);
-      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
+      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.SizableToolWindow;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
       this.Name = "Form1";
@@ -56,6 +56,7 @@
       this.Text = "TR";
       this.TopMost = true;
       this.Load += new System.EventHandler(this.Form1_Load);
+      this.Resize += new System.EventHandler(this.Form1_Resize);
       this.ResumeLayout(false);
       this.PerformLayout();
 

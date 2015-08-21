@@ -28,25 +28,52 @@
     /// </summary>
     private void InitializeComponent()
     {
-      this.button1 = new System.Windows.Forms.Button();
+      this.closeButton = new System.Windows.Forms.Button();
+      this.activeCB = new System.Windows.Forms.ComboBox();
+      this.updateButton = new System.Windows.Forms.Button();
       this.SuspendLayout();
       // 
-      // button1
+      // closeButton
       // 
-      this.button1.Location = new System.Drawing.Point(12, 12);
-      this.button1.Name = "button1";
-      this.button1.Size = new System.Drawing.Size(212, 36);
-      this.button1.TabIndex = 0;
-      this.button1.Text = "Close TouchRemote";
-      this.button1.UseVisualStyleBackColor = true;
-      this.button1.Click += new System.EventHandler(this.button1_Click);
+      this.closeButton.Location = new System.Drawing.Point(12, 110);
+      this.closeButton.Name = "closeButton";
+      this.closeButton.Size = new System.Drawing.Size(254, 36);
+      this.closeButton.TabIndex = 0;
+      this.closeButton.Text = "Close TouchRemote";
+      this.closeButton.UseVisualStyleBackColor = true;
+      this.closeButton.Click += new System.EventHandler(this.button1_Click);
+      // 
+      // activeCB
+      // 
+      this.activeCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+      this.activeCB.FormattingEnabled = true;
+      this.activeCB.Location = new System.Drawing.Point(12, 12);
+      this.activeCB.Name = "activeCB";
+      this.activeCB.Size = new System.Drawing.Size(254, 28);
+      this.activeCB.TabIndex = 1;
+      this.activeCB.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
+      // 
+      // updateButton
+      // 
+      this.updateButton.Location = new System.Drawing.Point(12, 56);
+      this.updateButton.Name = "updateButton";
+      this.updateButton.Size = new System.Drawing.Size(254, 36);
+      this.updateButton.TabIndex = 0;
+      this.updateButton.Text = "Update";
+      this.updateButton.UseVisualStyleBackColor = true;
+      this.updateButton.Click += new System.EventHandler(this.updateButton_Click);
       // 
       // OptionsForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.ClientSize = new System.Drawing.Size(278, 244);
-      this.Controls.Add(this.button1);
+      this.ClientSize = new System.Drawing.Size(278, 163);
+      this.Controls.Add(this.updateButton);
+      this.Controls.Add(this.activeCB);
+      this.Controls.Add(this.closeButton);
+      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+      this.MaximizeBox = false;
+      this.MinimizeBox = false;
       this.Name = "OptionsForm";
       this.Text = "OptionsForm";
       this.Load += new System.EventHandler(this.OptionsForm_Load);
@@ -56,6 +83,8 @@
 
     #endregion
 
-    private System.Windows.Forms.Button button1;
+    private System.Windows.Forms.Button closeButton;
+    private System.Windows.Forms.ComboBox activeCB;
+    private System.Windows.Forms.Button updateButton;
   }
 }

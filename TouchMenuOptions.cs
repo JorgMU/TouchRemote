@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TouchRemote
 {
-  public enum  ButtonType {  Cut, Copy, Paste, Keystroke }
+  public enum  ButtonType {  Keystroke }
 
   public class TouchMenuOptions
   {
@@ -13,6 +13,7 @@ namespace TouchRemote
     private Dictionary<string, TouchButtonSet> _sets;
     private string _activeSet;
 
+    public Dictionary<string, TouchButtonSet> Sets { get { return _sets; } }
     public int Count { get { return _sets.Count; } }
 
     public void Add(TouchButtonSet NewButtonSet)
@@ -39,9 +40,19 @@ namespace TouchRemote
     {
       _sets = new Dictionary<string, TouchButtonSet>();
       TouchButtonSet bs = new TouchButtonSet("CCP");
-      bs.Add(new TouchButton(ButtonType.Cut));
-      bs.Add(new TouchButton(ButtonType.Copy));
-      bs.Add(new TouchButton(ButtonType.Paste));
+      bs.Add("Cut", "^x");
+      bs.Add("Copy", "^c");
+      bs.Add("Paste", "^v");
+      bs.Add("Home", "{Home}");
+      bs.Add("End", "{End}");
+      bs.Add("SA", "^a");
+      this.Add(bs);
+      SelectedName = bs.Name;
+
+      bs = new TouchButtonSet("Feedly");
+      bs.Add("Next", "j");
+      bs.Add("Prev", "k");
+      bs.Add("Ref", "r");
       this.Add(bs);
       SelectedName = bs.Name;
     }
@@ -65,6 +76,11 @@ namespace TouchRemote
 
       public Dictionary<string,TouchButton> Buttons { get { return _buttons; } }
 
+      public void Add(string Name, string Keys)
+      {
+        _buttons.Add(Name, new TouchButton(Name, Keys));
+      }
+
       public void Add(TouchButton NewButton)
       {
         _buttons.Add(NewButton.Name, NewButton);
@@ -81,6 +97,7 @@ namespace TouchRemote
     {
       private ButtonType _type;
       private string _name;
+      private string _keys;
 
       public TouchButton(ButtonType Type)
       {
@@ -88,8 +105,16 @@ namespace TouchRemote
         _name = _type.ToString();
       }
 
+      public TouchButton(string Name, string Keys)
+      {
+        _type = ButtonType.Keystroke;
+        _name = Name;
+        _keys = Keys;
+      }
+
       public string Name { get { return _name; } }
       public ButtonType Type { get { return _type; } }
+      public string Keys { get { return _keys; } }
     }
   }
 }
