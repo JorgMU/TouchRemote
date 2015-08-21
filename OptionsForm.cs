@@ -14,9 +14,9 @@ namespace TouchRemote
     private OptionActions _action;
     public OptionActions Action {  get { return _action; } }
 
-    private TouchMenuOptions _opt;
+    private TouchRemoteOptions _opt;
 
-    public OptionsForm(ref TouchMenuOptions Options)
+    public OptionsForm(ref TouchRemoteOptions Options)
     {
       InitializeComponent();
       _action = OptionActions.Nothing;
@@ -28,7 +28,7 @@ namespace TouchRemote
       activeCB.Items.Clear();
       foreach (string s in _opt.Sets.Keys)
         activeCB.Items.Add(s);
-      activeCB.SelectedItem = _opt.SelectedName;
+      activeCB.SelectedItem = _opt.SelectedSet.Name;
     }
 
     private void button1_Click(object sender, EventArgs e)
@@ -39,12 +39,18 @@ namespace TouchRemote
 
     private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
     {
-      _opt.SelectedName = activeCB.SelectedItem.ToString();
+      _opt.Select(activeCB.SelectedItem.ToString());
     }
 
     private void updateButton_Click(object sender, EventArgs e)
     {
       _action = OptionActions.Update;
+      this.Close();
+    }
+
+    private void saveButton_Click(object sender, EventArgs e)
+    {
+      _action = OptionActions.Save;
       this.Close();
     }
   }

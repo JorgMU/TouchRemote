@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,11 +11,18 @@ using System.Windows.Forms;
 
 namespace TouchRemote
 {
-  public enum OptionActions { Nothing, Update, Exit }
+  public enum OptionActions { Nothing, Update, Exit, Save }
 
   public partial class Form1 : Form
   {
-    private TouchMenuOptions _opt;
+    private static readonly string _exePath = Environment.GetCommandLineArgs()[0];
+    private static readonly string _exeName = Path.GetFileName(_exePath);
+    private static readonly string _confPath = Path.Combine
+      (Path.GetDirectoryName(_exePath), 
+      Path.GetFileNameWithoutExtension(_exeName) + ".conf"
+    );
+
+    private TouchRemoteOptions _opt;
 
     private bool _adjustingForm = false;
     private int _lastButtonHeight = 0;
@@ -24,6 +32,8 @@ namespace TouchRemote
 
     private const int MINBUTTONWIDTH = 48;
     private const int MINBUTTONHEIGHT = 32;
+    private const int DEFAULTBUTTONWIDTH = 64;
+    private const int DEFAULTBUTTONHEIGHT = 48;
 
     const int WM_NCRBUTTONDOWN = 0xA4;
     const int WM_NCRBUTTONUP = 0xA5;
@@ -43,7 +53,12 @@ namespace TouchRemote
       //focustLable is given the focus so that the buttons are never highlighted
       //this moves it out of the clipping area so it is not visible
       focusLabel.Location = new Point(this.ClientRectangle.Width + 32, 0);
-      _opt = new TouchMenuOptions();
+
+      _opt = new TouchRemoteOptions();
+
+      FileInfo fi = new FileInfo(_confPath);
+      if (fi.Exists) _opt.Load(fi);
+
       ResetButtons();
     }
 
@@ -102,6 +117,7 @@ namespace TouchRemote
 
       if (oa == OptionActions.Exit) this.Close();
       else if (oa == OptionActions.Update) ResetButtons();
+      else if (oa == OptionActions.Save) _opt.Save(new FileInfo(_confPath));
     }
 
     private void managedButton_MouseUp(object sender, MouseEventArgs e)
@@ -119,16 +135,8 @@ namespace TouchRemote
 
     private void DoButtonAction(string ButtonName)
     {
-      TouchMenuOptions.TouchButton b = _opt.SelectedSet[ButtonName];
-
-      switch (b.Type)
-      {
-        case ButtonType.Keystroke:
-          SendKeys.Send(b.Keys);
-          break;
-        default:
-          break;
-      }
+      TouchRemoteOptions.TouchButton b = _opt.SelectedSet[ButtonName];
+      SendKeys.Send(b.Keys);
     }
 
     private void AddButtonToForm(string Name)
@@ -161,21 +169,16 @@ namespace TouchRemote
       int adjW = this.Width - this.ClientRectangle.Width;
       int adjH = this.Height - this.ClientRectangle.Height;
 
-      int cw = this.ClientRectangle.Width;
-      if (cw < MINBUTTONWIDTH)
-      {
-        cw = MINBUTTONWIDTH;
-        this.Width = cw + adjW;
-      }
-
       //since we want perfect fit, we will always reset the size based on the number of buttons
       int ch = this.ClientRectangle.Height / bc + (bc * SpacerY); //first guess
 
       //if the last button count was 0, both 'last' values are not useful
       if (_lastButtonCount == 0)
       {
-        _lastButtonCount = bc;
+        ch = DEFAULTBUTTONHEIGHT;
         _lastButtonHeight = ch;
+        _lastButtonCount = bc;
+        this.Width = DEFAULTBUTTONWIDTH + adjW;
       }
 
       //if the number of buttons has changed, try to reuse the button height
@@ -186,10 +189,18 @@ namespace TouchRemote
       //force exact height base new calculated height (ch)
       this.Height = bc * (ch + SpacerY) + adjH;
 
+      int cw = this.ClientRectangle.Width;
+      if (cw < MINBUTTONWIDTH)
+      {
+        cw = MINBUTTONWIDTH;
+        this.Width = cw + adjW;
+      }
+
       //save to try and reuse if the button count changes
       _lastButtonHeight = ch;
       _lastButtonCount = bc;
 
+      //Now adjust the buttons to fit the form
       int i = 0;
       foreach (Control o in this.Controls)
         if(o.GetType().ToString() == "System.Windows.Forms.Button")
@@ -206,7 +217,7 @@ namespace TouchRemote
 
     private void Form1_Resize(object sender, EventArgs e)
     {
-      if (_adjustingForm) return; //don't react to my own resizes
+      if (_adjustingForm) return; //don't react to my own actions
       if (_opt == null) return; //don't do anything if settings have not been loaded
       AdjustForm();
     }

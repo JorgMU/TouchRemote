@@ -53,7 +53,7 @@
       this.Name = "Form1";
       this.ShowInTaskbar = false;
       this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
-      this.Text = "TR";
+      this.Text = "TRemote";
       this.TopMost = true;
       this.Load += new System.EventHandler(this.Form1_Load);
       this.Resize += new System.EventHandler(this.Form1_Resize);
