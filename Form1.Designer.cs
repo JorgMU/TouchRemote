@@ -34,11 +34,11 @@
       // focusLabel
       // 
       this.focusLabel.AutoSize = true;
-      this.focusLabel.Location = new System.Drawing.Point(126, 9);
+      this.focusLabel.Location = new System.Drawing.Point(3, 9);
       this.focusLabel.Name = "focusLabel";
-      this.focusLabel.Size = new System.Drawing.Size(63, 20);
+      this.focusLabel.Size = new System.Drawing.Size(48, 20);
       this.focusLabel.TabIndex = 1;
-      this.focusLabel.Text = "Dummy";
+      this.focusLabel.Text = "focus";
       // 
       // Form1
       // 

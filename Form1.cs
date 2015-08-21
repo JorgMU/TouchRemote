@@ -16,14 +16,14 @@ namespace TouchRemote
   {
     private TouchMenuOptions _opt;
 
-    private const int BaseX = 0;
-    private const int BaseY = 1;
+    private bool _adjustingForm = false;
+    private int _lastButtonHeight = 0;
+    private int _lastButtonCount = 0;
+
     private const int SpacerY = -1;
 
     private const int MINBUTTONWIDTH = 48;
     private const int MINBUTTONHEIGHT = 32;
-
-    private bool _adjustingForm = false;
 
     const int WM_NCRBUTTONDOWN = 0xA4;
     const int WM_NCRBUTTONUP = 0xA5;
@@ -35,22 +35,37 @@ namespace TouchRemote
 
     public Form1()
     {
-      InitializeComponent();
+      InitializeComponent();      
+    }
 
+    private void Form1_Load(object sender, EventArgs e)
+    {
+      //focustLable is given the focus so that the buttons are never highlighted
+      //this moves it out of the clipping area so it is not visible
+      focusLabel.Location = new Point(this.ClientRectangle.Width + 32, 0);
       _opt = new TouchMenuOptions();
-
       ResetButtons();
-      
     }
 
     protected void ResetButtons()
     {
+      List<string> toRemove = new List<string>();
+
       foreach (Control o in this.Controls)
         if (o.GetType() == typeof(Button))
-          this.Controls.Remove(o);
+          toRemove.Add(o.Name);
+
+      foreach (string s in toRemove)
+      {
+        Control c = this.Controls[s];
+        this.Controls.Remove(c);
+        c.Dispose();
+      }
 
       foreach (string bn in _opt.SelectedSet.Buttons.Keys)
         AddButtonToForm(bn);
+
+      AdjustForm();
     }
 
     protected override void WndProc(ref Message m)
@@ -69,11 +84,6 @@ namespace TouchRemote
         ret.ExStyle |= WS_EX_NOACTIVATE;
         return ret;
       }
-    }
-
-    private void Form1_Load(object sender, EventArgs e)
-    {
-
     }
 
     private void shared_GotFocus(object sender, EventArgs e)
@@ -121,55 +131,71 @@ namespace TouchRemote
       }
     }
 
-    private void RemoveButtonFromForm(string Name)
-    {
-      if (!this.Controls.ContainsKey(Name)) return;
-      this.Controls.Remove(this.Controls[Name]);
-      AdjustForm();
-    }
-
     private void AddButtonToForm(string Name)
     {
-      if (this.Controls.ContainsKey(Name)) RemoveButtonFromForm(Name);
-    
       Button b = new Button();
+      b.Padding = new Padding(0);
       b.Text = Name;
       b.Name = Name;
-      b.Location = new System.Drawing.Point(BaseX, BaseY);
+      b.Location = new System.Drawing.Point(0, 0);
       b.Size = new System.Drawing.Size(MINBUTTONWIDTH, MINBUTTONHEIGHT);
       b.UseVisualStyleBackColor = true;
       b.MouseUp += new System.Windows.Forms.MouseEventHandler(managedButton_MouseUp);
       b.GotFocus += new EventHandler(shared_GotFocus);
       this.Controls.Add(b);
-
-      AdjustForm();
-
     }
 
     private void AdjustForm()
     {
+      if (_adjustingForm) return;
       if (_opt == null) return;
-      int bc = _opt.ActiveButtonCount;
-      if (bc < 1) return;
 
-      _adjustingForm = true;
+      int bc = 0;
+      foreach (Control c in this.Controls)
+        if (c.GetType() == typeof(Button)) bc++;
+
+      if (bc < 1) return;
+      _adjustingForm = true; //prevent us from stepping on our own toes
+
+      //difference between form and client area
+      int adjW = this.Width - this.ClientRectangle.Width;
+      int adjH = this.Height - this.ClientRectangle.Height;
 
       int cw = this.ClientRectangle.Width;
-      if(cw < MINBUTTONWIDTH)
-        this.Width += MINBUTTONWIDTH - cw;
-      cw = this.ClientRectangle.Width;
+      if (cw < MINBUTTONWIDTH)
+      {
+        cw = MINBUTTONWIDTH;
+        this.Width = cw + adjW;
+      }
 
-      int ch = this.ClientRectangle.Height / bc;
-      if(ch < MINBUTTONHEIGHT)
-        this.Height += (MINBUTTONHEIGHT - ch) * bc;
-      ch = this.ClientRectangle.Height / bc;
+      //since we want perfect fit, we will always reset the size based on the number of buttons
+      int ch = this.ClientRectangle.Height / bc + (bc * SpacerY); //first guess
+
+      //if the last button count was 0, both 'last' values are not useful
+      if (_lastButtonCount == 0)
+      {
+        _lastButtonCount = bc;
+        _lastButtonHeight = ch;
+      }
+
+      //if the number of buttons has changed, try to reuse the button height
+      if(_lastButtonCount != bc) ch = _lastButtonHeight;
+
+      if (ch < MINBUTTONHEIGHT) ch = MINBUTTONHEIGHT;
+
+      //force exact height base new calculated height (ch)
+      this.Height = bc * (ch + SpacerY) + adjH;
+
+      //save to try and reuse if the button count changes
+      _lastButtonHeight = ch;
+      _lastButtonCount = bc;
 
       int i = 0;
       foreach (Control o in this.Controls)
         if(o.GetType().ToString() == "System.Windows.Forms.Button")
         {
-          int newY = BaseY + i * ch;
-          o.Location = new Point(BaseX, newY);
+          int newY = i * (ch + SpacerY);
+          o.Location = new Point(0, newY);
           o.Size = new Size(cw, ch);
           o.TabIndex = i;
           i++;
