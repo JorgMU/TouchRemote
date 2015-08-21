@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -11,7 +12,7 @@ using System.Windows.Forms;
 
 namespace TouchRemote
 {
-  public enum OptionActions { Nothing, Update, Exit, Save }
+  public enum OptionActions { Nothing, Update, Exit }
 
   public partial class Form1 : Form
   {
@@ -22,7 +23,9 @@ namespace TouchRemote
       Path.GetFileNameWithoutExtension(_exeName) + ".conf"
     );
 
-    private TouchRemoteOptions _opt;
+    private static Dictionary<string, TouchButton> _buttons;
+    private static List<string> _groups;
+    private static string _active;
 
     private bool _adjustingForm = false;
     private int _lastButtonHeight = 0;
@@ -36,12 +39,7 @@ namespace TouchRemote
     private const int DEFAULTBUTTONHEIGHT = 48;
 
     const int WM_NCRBUTTONDOWN = 0xA4;
-    const int WM_NCRBUTTONUP = 0xA5;
-
-    const int WS_THICKFRAME = 0x00040000;
-    const int WS_CHILD = 0x40000000;
     const int WS_EX_NOACTIVATE = 0x08000000;
-    const int WS_EX_TOOLWINDOW = 0x00000080;
 
     public Form1()
     {
@@ -50,16 +48,42 @@ namespace TouchRemote
 
     private void Form1_Load(object sender, EventArgs e)
     {
-      //focustLable is given the focus so that the buttons are never highlighted
-      //this moves it out of the clipping area so it is not visible
-      focusLabel.Location = new Point(this.ClientRectangle.Width + 32, 0);
+      focusLabel.SendToBack();
 
-      _opt = new TouchRemoteOptions();
+      _buttons = new Dictionary<string, TouchButton>();
 
       FileInfo fi = new FileInfo(_confPath);
-      if (fi.Exists) _opt.Load(fi);
+      if (fi.Exists) LoadButtons(fi);
+      else
+      {
+        LoadDefaults();
+        DialogResult dr = MessageBox.Show("Would you like to create a default conf file?", "TouchRemot", MessageBoxButtons.YesNo);
+        if (dr == DialogResult.Yes) SaveButtons(fi);
+      }
 
+      UpdateGroups();
       ResetButtons();
+      LoadLocation();
+    }
+
+    public void ActivateGroup(string GroupName)
+    {
+      if (_groups.Contains(GroupName))
+        _active = GroupName;
+      else if (!_groups.Contains(_active))
+        if (_groups.Count > 0) _active = _groups[0];
+        else _active = "";
+
+      if (_active == "") this.Text = "TRemote";
+      else this.Text = _active;
+    }
+
+    private void UpdateGroups()
+    {
+      _groups = new List<string>();
+      foreach (TouchButton tb in _buttons.Values)
+        if (!_groups.Contains(tb.Group))
+          _groups.Add(tb.Group);
     }
 
     protected void ResetButtons()
@@ -77,8 +101,9 @@ namespace TouchRemote
         c.Dispose();
       }
 
-      foreach (string bn in _opt.SelectedSet.Buttons.Keys)
-        AddButtonToForm(bn);
+      foreach (string bn in _buttons.Keys)
+        if(_buttons[bn].Group == _active)
+          AddButtonToForm(bn);
 
       AdjustForm();
     }
@@ -110,14 +135,19 @@ namespace TouchRemote
     private void titleBar_rightButtonDown()
     {
       this.TopMost = false;
-      OptionsForm of = new OptionsForm(ref _opt);
-      of.ShowDialog();
+      OptionsForm of = new OptionsForm(_groups, _active);
+      of.Location = this.Location;
+      of.Refresh();
+      of.ShowDialog(this);
       OptionActions oa = of.Action;
       this.TopMost = true;
 
       if (oa == OptionActions.Exit) this.Close();
-      else if (oa == OptionActions.Update) ResetButtons();
-      else if (oa == OptionActions.Save) _opt.Save(new FileInfo(_confPath));
+      else if (oa == OptionActions.Update)
+      {
+        ActivateGroup(of.ActiveGroup);
+        ResetButtons();
+      }
     }
 
     private void managedButton_MouseUp(object sender, MouseEventArgs e)
@@ -135,7 +165,7 @@ namespace TouchRemote
 
     private void DoButtonAction(string ButtonName)
     {
-      TouchRemoteOptions.TouchButton b = _opt.SelectedSet[ButtonName];
+      TouchButton b = _buttons[ButtonName];
       SendKeys.Send(b.Keys);
     }
 
@@ -156,7 +186,9 @@ namespace TouchRemote
     private void AdjustForm()
     {
       if (_adjustingForm) return;
-      if (_opt == null) return;
+      if (_buttons == null || _buttons.Count < 1) return;
+      if (_groups == null || _groups.Count < 1) return;
+      if (_active == null || _active == "") return;
 
       int bc = 0;
       foreach (Control c in this.Controls)
@@ -212,15 +244,155 @@ namespace TouchRemote
           i++;
         }
 
+      focusLabel.Left = this.Width + 10;
+      focusLabel.Top = this.Height + 10;
+
       _adjustingForm = false;
     }
 
     private void Form1_Resize(object sender, EventArgs e)
     {
       if (_adjustingForm) return; //don't react to my own actions
-      if (_opt == null) return; //don't do anything if settings have not been loaded
+      if (_buttons == null) return; //don't do anything if settings have not been loaded
       AdjustForm();
     }
+
+    public void SaveButtons(FileInfo OptionsFile)
+    {
+      StreamWriter sw = null;
+      try
+      {
+        sw = new StreamWriter(OptionsFile.OpenWrite());
+        foreach (TouchButton b in _buttons.Values)
+          sw.WriteLine("button={0}|{1}|{2}", b.Group, b.Name, b.Keys);
+        sw.WriteLine("active=" + _active);
+      }
+      catch (SystemException se) { ShowError(se); }
+      finally { if (sw != null) sw.Close(); }
+    }
+
+    public void LoadButtons(FileInfo OptionsFile)
+    {
+      if (!OptionsFile.Exists) return;
+
+      string newActive = "";
+
+      StreamReader sr = null;
+      try
+      {
+        sr = OptionsFile.OpenText();
+        while (!sr.EndOfStream)
+        {
+          string line = sr.ReadLine();
+          string[] parts = line.Split("=".ToCharArray(), 2);
+          if (parts.Length < 2) continue;
+          switch (parts[0])
+          {
+            case "button":
+              TouchButton tb = new TouchButton(parts[1]);
+              if (tb.Name != "") _buttons.Add(tb.Name, tb);
+              break;
+            case "active":
+              newActive = parts[1];
+              break;
+            default:
+              break;
+          }
+        }
+      }
+      catch (SystemException se) { ShowError(se); }
+      finally { if (sr != null) sr.Close(); }
+
+      UpdateGroups();
+      ActivateGroup(newActive);
+    }
+
+    public void LoadDefaults()
+    {
+      _buttons.Add("Cut", new TouchButton("CCP|Cut|^x"));
+      _buttons.Add("Copy", new TouchButton("CCP|Copy|^c"));
+      _buttons.Add("Paste", new TouchButton("CCP|Paste|^v"));
+      _buttons.Add("Home", new TouchButton("CCP|Home|{Home}"));
+      _buttons.Add("End", new TouchButton("CCP|End|{End}"));
+      _buttons.Add("SA", new TouchButton("CCP|SA|^a"));
+      UpdateGroups();
+      ActivateGroup("CCP");
+    }
+
+    private void ShowError(SystemException se)
+    {
+      string msg = se.Message;
+      if (se.InnerException != null) msg += "\r\n" + se.InnerException.Message;
+      MessageBox.Show(msg, "TouchRemoteOptions", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+
+    private const string REGROOT = @"Software\Jorg\TouchRemote";
+    private void SaveLocation()
+    {
+      RegistryKey rk = Registry.CurrentUser.OpenSubKey(REGROOT, true);
+      if (rk == null) rk = Registry.CurrentUser.CreateSubKey(REGROOT, RegistryKeyPermissionCheck.ReadWriteSubTree);
+      if (rk == null) return;
+      rk.SetValue("Left", this.Left, RegistryValueKind.DWord);
+      rk.SetValue("Top", this.Top, RegistryValueKind.DWord);
+      rk.SetValue("Width", this.Width, RegistryValueKind.DWord);
+      rk.SetValue("Height", this.Height, RegistryValueKind.DWord);
+    }
+
+    private void LoadLocation()
+    {
+      RegistryKey rk = Registry.CurrentUser.OpenSubKey(REGROOT, RegistryKeyPermissionCheck.ReadSubTree);
+      if (rk == null) return;
+
+      int newLeft = (int)rk.GetValue("Left", 0);
+      int newTop = (int)rk.GetValue("Top", 0);
+      int newWidth = (int)rk.GetValue("Width", 0);
+      int newHeight = (int)rk.GetValue("Height", 0);
+
+      if (newLeft != 0) this.Left = newLeft;
+      if (newTop != 0) this.Top = newTop;
+      if (newWidth != 0) this.Width = newWidth;
+      if (newHeight != 0) this.Height = newHeight;
+
+      this.Refresh();
+    }
+
+    private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+    {
+      SaveLocation();
+    }
+
+    public class TouchButton
+    {
+      public string Group;
+      public string Name;
+      public string Keys;
+
+      public TouchButton()
+      {
+        this.Group = "";
+        this.Name = "";
+        this.Keys = "";
+      }
+
+      public TouchButton(string Group, string Name, string Keys)
+      {
+        this.Group = Group;
+        this.Name = Name;
+        this.Keys = Keys;
+      }
+
+      public TouchButton(string EncodedButton) : this()
+      {
+        string[] subparts = EncodedButton.Split("|".ToCharArray(), 3);
+        if (subparts.Length < 3) return;
+        Group = subparts[0].Trim();
+        Name = subparts[1].Trim();
+        Keys = subparts[2];
+      }
+    }
+
+    
   }
 }
   
