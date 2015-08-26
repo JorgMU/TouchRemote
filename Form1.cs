@@ -128,7 +128,6 @@ namespace TouchRemote
 
     private void shared_GotFocus(object sender, EventArgs e)
     {
-      Button b = (Button)sender;
       focusLabel.Focus();
     }
 
@@ -155,12 +154,10 @@ namespace TouchRemote
       if (sender.GetType() != typeof(Button)) return;
       Button b = (Button)sender;
 
-      if (e.Button == MouseButtons.Right)
-      {
-      }
-      else if (e.Button == MouseButtons.Left)
+      if (e.Button == MouseButtons.Left)
         DoButtonAction(b.Name);
 
+      focusLabel.Focus();
     }
 
     private void DoButtonAction(string ButtonName)
@@ -177,8 +174,8 @@ namespace TouchRemote
       b.Name = Name;
       b.Location = new System.Drawing.Point(0, 0);
       b.Size = new System.Drawing.Size(MINBUTTONWIDTH, MINBUTTONHEIGHT);
-      b.UseVisualStyleBackColor = true;
-      b.MouseUp += new System.Windows.Forms.MouseEventHandler(managedButton_MouseUp);
+      b.UseVisualStyleBackColor = false;
+      b.MouseUp += new MouseEventHandler(managedButton_MouseUp);
       b.GotFocus += new EventHandler(shared_GotFocus);
       this.Controls.Add(b);
     }
@@ -263,9 +260,11 @@ namespace TouchRemote
       try
       {
         sw = new StreamWriter(OptionsFile.OpenWrite());
+        sw.WriteLine(@"#SendKeys info: https://msdn.microsoft.com/en-US/library/system.windows.forms.sendkeys.send(v=vs.110).aspx");
+        sw.WriteLine(@"#Example Special Keys: {UP} {DOWN} {LEFT} {Right} {DEL} {BS} {TAB}");
+        sw.WriteLine("active=" + _active);
         foreach (TouchButton b in _buttons.Values)
           sw.WriteLine("button={0}|{1}|{2}", b.Group, b.Name, b.Keys);
-        sw.WriteLine("active=" + _active);
       }
       catch (SystemException se) { ShowError(se); }
       finally { if (sw != null) sw.Close(); }
@@ -284,6 +283,7 @@ namespace TouchRemote
         while (!sr.EndOfStream)
         {
           string line = sr.ReadLine();
+          if (line.StartsWith("#")) continue;
           string[] parts = line.Split("=".ToCharArray(), 2);
           if (parts.Length < 2) continue;
           switch (parts[0])
