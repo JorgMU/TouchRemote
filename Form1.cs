@@ -23,6 +23,7 @@ namespace TouchRemote
       Path.GetFileNameWithoutExtension(_exeName) + ".conf"
     );
 
+    //string ButtonID = ButtonGroup + ButtonName
     private static Dictionary<string, TouchButton> _buttons;
     private static List<string> _groups;
     private static string _active;
@@ -101,9 +102,9 @@ namespace TouchRemote
         c.Dispose();
       }
 
-      foreach (string bn in _buttons.Keys)
-        if(_buttons[bn].Group == _active)
-          AddButtonToForm(bn);
+      foreach (TouchButton tb in _buttons.Values)
+        if(tb.Group == _active)
+          AddButtonToForm(tb);
 
       AdjustForm();
     }
@@ -160,18 +161,18 @@ namespace TouchRemote
       focusLabel.Focus();
     }
 
-    private void DoButtonAction(string ButtonName)
+    private void DoButtonAction(string ButtonID)
     {
-      TouchButton b = _buttons[ButtonName];
+      TouchButton b = _buttons[ButtonID];
       SendKeys.Send(b.Keys);
     }
 
-    private void AddButtonToForm(string Name)
+    private void AddButtonToForm(TouchButton TButton)
     {
       Button b = new Button();
       b.Padding = new Padding(0);
-      b.Text = Name;
-      b.Name = Name;
+      b.Text = TButton.Name;
+      b.Name = TButton.Group + TButton.Name;
       b.Location = new System.Drawing.Point(0, 0);
       b.Size = new System.Drawing.Size(MINBUTTONWIDTH, MINBUTTONHEIGHT);
       b.UseVisualStyleBackColor = false;
@@ -290,7 +291,7 @@ namespace TouchRemote
           {
             case "button":
               TouchButton tb = new TouchButton(parts[1]);
-              if (tb.Name != "") _buttons.Add(tb.Name, tb);
+              if (tb.Name != "") AddButton(tb);
               break;
             case "active":
               newActive = parts[1];
@@ -309,14 +310,19 @@ namespace TouchRemote
 
     public void LoadDefaults()
     {
-      _buttons.Add("Cut", new TouchButton("CCP|Cut|^x"));
-      _buttons.Add("Copy", new TouchButton("CCP|Copy|^c"));
-      _buttons.Add("Paste", new TouchButton("CCP|Paste|^v"));
-      _buttons.Add("Home", new TouchButton("CCP|Home|{Home}"));
-      _buttons.Add("End", new TouchButton("CCP|End|{End}"));
-      _buttons.Add("SA", new TouchButton("CCP|SA|^a"));
+      AddButton(new TouchButton("CCP|Cut|^x"));
+      AddButton(new TouchButton("CCP|Copy|^c"));
+      AddButton(new TouchButton("CCP|Paste|^v"));
+      AddButton(new TouchButton("CCP|Home|{Home}"));
+      AddButton(new TouchButton("CCP|End|{End}"));
+      AddButton(new TouchButton("CCP|SA|^a"));
       UpdateGroups();
       ActivateGroup("CCP");
+    }
+
+    private void AddButton(TouchButton TButton)
+    {
+      _buttons.Add(TButton.Group + TButton.Name, TButton);
     }
 
     private void ShowError(SystemException se)
